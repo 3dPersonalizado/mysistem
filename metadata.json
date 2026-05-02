@@ -1,0 +1,6 @@
+{
+  "name": "LukasFe3D Hub",
+  "description": "Sistema de gestão de vendas, estoque e clientes.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": []
+}

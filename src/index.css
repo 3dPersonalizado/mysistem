@@ -1,0 +1,39 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+}
+
+body {
+  @apply bg-[#FFDE2E] text-[#000000] min-h-screen font-sans antialiased overflow-x-hidden;
+  box-sizing: border-box;
+}
+
+*, ::before, ::after {
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .container {
+    @apply px-4;
+  }
+}
+
+/* Custom Scrollbar for Vibrant Theme */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #FFDE2E;
+}
+::-webkit-scrollbar-thumb {
+  background: #000000;
+  border-radius: 0px; /* Brutalist feel */
+  border: 2px solid #FFDE2E;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #333333;
+}
+
