@@ -232,12 +232,18 @@ export async function importarBackup(): Promise<any | null> {
 
         const reader = new FileReader();
         reader.onload = (event) => {
+          const result = event.target?.result as string;
+          if (!result || result.trim() === '') {
+            alert('O arquivo de backup está vazio.');
+            resolve(null);
+            return;
+          }
           try {
-            const data = JSON.parse(event.target?.result as string);
+            const data = JSON.parse(result);
             resolve(data);
           } catch (err) {
             console.error('[Backup] Erro ao ler arquivo:', err);
-            alert('Arquivo inválido ou corrompido.');
+            alert('Arquivo inválido ou corrompido (Erro no JSON).');
             resolve(null);
           }
         };

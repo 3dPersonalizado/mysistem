@@ -3954,45 +3954,113 @@ function SettingsView({
   
   const handleRestoreFromData = (imported: any) => {
     try {
-      // Validar dados básicos antes de restaurar
+      // 1. Garantir leitura correta e validar se o conteúdo não está vazio
       if (!imported || typeof imported !== 'object') {
-        throw new Error('Arquivo de backup inválido.');
+        throw new Error('Arquivo de backup inválido ou vazio.');
       }
 
+      // 2. Mapeamento Inteligente (Suporta Inglês e Português)
+      // Extrai dados das chaves possíveis, priorizando as do sistema mas aceitando as sugeridas pelo usuário
+      const restoreData: Record<string, any> = {};
+      
+      // Mapeamento de chaves
+      const mapping = [
+        { internal: 'products', keys: ['products', 'produtos'] },
+        { internal: 'customers', keys: ['customers', 'clientes'] },
+        { internal: 'sales', keys: ['sales', 'pedidos', 'vendas'] },
+        { internal: 'activities', keys: ['activities', 'atividades', 'historico_atividades'] },
+        { internal: 'categories', keys: ['categories', 'categorias'] },
+        { internal: 'subcategories', keys: ['subcategories', 'subcategorias'] },
+        { internal: 'delivery_channels', keys: ['delivery_channels', 'deliveryChannels', 'canais_entrega'] },
+        { internal: 'delivery_methods', keys: ['delivery_methods', 'deliveryMethods', 'metodos_entrega'] },
+        { internal: 'closed_sessions', keys: ['closed_sessions', 'closedSessions', 'sessoes_fechadas'] },
+        { internal: 'users', keys: ['users', 'usuarios'] },
+        { internal: 'roles', keys: ['roles', 'cargos', 'permissoes'] },
+        { internal: 'paymentMethods', keys: ['paymentMethods', 'metodos_pagamento'] },
+        { internal: 'customPaymentMethods', keys: ['customPaymentMethods', 'metodos_pagamento_personalizados'] },
+        { internal: 'hiddenPaymentMethods', keys: ['hiddenPaymentMethods', 'metodos_pagamento_ocultos'] },
+        { internal: 'printers', keys: ['printers', 'impressoras'] },
+        { internal: 'registeredPrinters', keys: ['registeredPrinters'] },
+        { internal: 'company', keys: ['company', 'empresa', 'dados_empresa'] },
+        { internal: 'couponConfig', keys: ['couponConfig', 'configuracao_cupom'] },
+        { internal: 'couponPDVConfig', keys: ['couponPDVConfig', 'configuracao_pdv'] },
+        { internal: 'greetingCouponConfig', keys: ['greetingCouponConfig', 'configuracao_saudacao'] },
+        { internal: 'labelConfig', keys: ['labelConfig', 'configuracao_etiqueta'] },
+        { internal: 'cashierSession', keys: ['cashierSession', 'sessao_caixa'] },
+        { internal: 'revenues', keys: ['revenues', 'receitas'] },
+        { internal: 'purchases', keys: ['purchases', 'compras'] },
+        { internal: 'expenses', keys: ['expenses', 'despesas'] },
+        { internal: 'rawMaterialsStructured', keys: ['rawMaterialsStructured', 'rawMaterials', 'materias_primas'] },
+        { internal: 'productRecipes', keys: ['productRecipes', 'receitas_produtos'] },
+        { internal: 'shopkeepers', keys: ['shopkeepers', 'lojistas'] },
+        { internal: 'shopkeeperDeliveries', keys: ['shopkeeperDeliveries', 'entregas_lojistas'] },
+        { internal: 'gallery', keys: ['gallery', 'galeria'] },
+        { internal: 'catalogDescriptions', keys: ['catalogDescriptions', 'descricoes_catalogo'] },
+        { internal: 'openSessions', keys: ['openSessions', 'sessoes_abertas'] },
+        { internal: 'selectedPrinter', keys: ['selectedPrinter'] },
+        { internal: 'selectedLabelPrinter', keys: ['selectedLabelPrinter'] }
+      ];
+
+      // Busca dados nas chaves diretas
+      mapping.forEach(m => {
+        for (const k of m.keys) {
+          if (imported[k] !== undefined) {
+            restoreData[m.internal] = imported[k];
+            break;
+          }
+        }
+      });
+
+      // Trata a chave especial 'configuracoes' se existir (pode conter sub-objetos)
+      if (imported.configuracoes && typeof imported.configuracoes === 'object' && !Array.isArray(imported.configuracoes)) {
+        if (restoreData.company === undefined && imported.configuracoes.empresa) restoreData.company = imported.configuracoes.empresa;
+        if (restoreData.couponConfig === undefined && imported.configuracoes.cupom) restoreData.couponConfig = imported.configuracoes.cupom;
+        if (restoreData.couponPDVConfig === undefined && imported.configuracoes.pdv) restoreData.couponPDVConfig = imported.configuracoes.pdv;
+        if (restoreData.labelConfig === undefined && imported.configuracoes.etiqueta) restoreData.labelConfig = imported.configuracoes.etiqueta;
+      }
+
+      // 3. Validar estrutura mínima para evitar importação acidental de lixo
+      const hasMinData = restoreData.products || restoreData.customers || restoreData.sales;
+      if (!hasMinData) {
+        throw new Error('Estrutura do JSON incorreta: Não foram encontrados produtos, clientes ou pedidos. O backup pode ser de outro sistema ou estar corrompido.');
+      }
+
+      // 4. Preparar lista para restauração no Storage
       const keysToRestore = [
-        { key: STORAGE_KEYS.PRODUCTS, data: imported.products },
-        { key: STORAGE_KEYS.CATALOG_DESCRIPTIONS, data: imported.catalogDescriptions },
-        { key: STORAGE_KEYS.CUSTOMERS, data: imported.customers },
-        { key: STORAGE_KEYS.SALES, data: imported.sales },
-        { key: STORAGE_KEYS.ACTIVITIES, data: imported.activities },
-        { key: STORAGE_KEYS.CATEGORIES, data: imported.categories },
-        { key: STORAGE_KEYS.SUBCATEGORIES, data: imported.subcategories },
-        { key: STORAGE_KEYS.DELIVERY_CHANNELS, data: imported.delivery_channels || imported.deliveryChannels },
-        { key: STORAGE_KEYS.DELIVERY_METHODS, data: imported.delivery_methods || imported.deliveryMethods },
-        { key: STORAGE_KEYS.CLOSED_SESSIONS, data: imported.closed_sessions || imported.closedSessions },
-        { key: STORAGE_KEYS.OPEN_SESSIONS, data: imported.openSessions },
-        { key: STORAGE_KEYS.USERS, data: imported.users },
-        { key: STORAGE_KEYS.ROLES, data: imported.roles },
-        { key: STORAGE_KEYS.PAYMENT_METHODS, data: imported.paymentMethods },
-        { key: STORAGE_KEYS.CUSTOM_PAYMENT_METHODS, data: imported.customPaymentMethods },
-        { key: STORAGE_KEYS.HIDDEN_PAYMENT_METHODS, data: imported.hiddenPaymentMethods },
-        { key: STORAGE_KEYS.PRINTERS, data: imported.printers },
-        { key: STORAGE_KEYS.REGISTERED_PRINTERS, data: imported.registeredPrinters },
-        { key: STORAGE_KEYS.COMPANY_INFO, data: imported.company },
-        { key: STORAGE_KEYS.COUPON_CONFIG, data: imported.couponConfig },
-        { key: STORAGE_KEYS.COUPON_PDV_CONFIG, data: imported.couponPDVConfig },
-        { key: STORAGE_KEYS.GREETING_COUPON_CONFIG, data: imported.greetingCouponConfig },
-        { key: STORAGE_KEYS.LABEL_CONFIG, data: imported.labelConfig },
-        { key: STORAGE_KEYS.CASHIER_SESSION, data: imported.cashierSession },
-        { key: STORAGE_KEYS.SELECTED_PRINTER, data: imported.selectedPrinter },
-        { key: STORAGE_KEYS.SELECTED_LABEL_PRINTER, data: imported.selectedLabelPrinter },
-        { key: STORAGE_KEYS.REVENUES, data: imported.revenues },
-        { key: STORAGE_KEYS.PURCHASES, data: imported.purchases },
-        { key: STORAGE_KEYS.EXPENSES, data: imported.expenses },
-        { key: STORAGE_KEYS.RAW_MATERIALS, data: imported.rawMaterialsStructured || imported.rawMaterials },
-        { key: STORAGE_KEYS.PRODUCT_RECIPES, data: imported.productRecipes },
-        { key: STORAGE_KEYS.SHOPKEEPERS, data: imported.shopkeepers },
-        { key: STORAGE_KEYS.SHOPKEEPER_DELIVERIES, data: imported.shopkeeperDeliveries }
+        { key: STORAGE_KEYS.PRODUCTS, data: restoreData.products },
+        { key: STORAGE_KEYS.CATALOG_DESCRIPTIONS, data: restoreData.catalogDescriptions },
+        { key: STORAGE_KEYS.CUSTOMERS, data: restoreData.customers },
+        { key: STORAGE_KEYS.SALES, data: restoreData.sales },
+        { key: STORAGE_KEYS.ACTIVITIES, data: restoreData.activities },
+        { key: STORAGE_KEYS.CATEGORIES, data: restoreData.categories },
+        { key: STORAGE_KEYS.SUBCATEGORIES, data: restoreData.subcategories },
+        { key: STORAGE_KEYS.DELIVERY_CHANNELS, data: restoreData.delivery_channels },
+        { key: STORAGE_KEYS.DELIVERY_METHODS, data: restoreData.delivery_methods },
+        { key: STORAGE_KEYS.CLOSED_SESSIONS, data: restoreData.closed_sessions },
+        { key: STORAGE_KEYS.OPEN_SESSIONS, data: restoreData.openSessions },
+        { key: STORAGE_KEYS.USERS, data: restoreData.users },
+        { key: STORAGE_KEYS.ROLES, data: restoreData.roles },
+        { key: STORAGE_KEYS.PAYMENT_METHODS, data: restoreData.paymentMethods },
+        { key: STORAGE_KEYS.CUSTOM_PAYMENT_METHODS, data: restoreData.customPaymentMethods },
+        { key: STORAGE_KEYS.HIDDEN_PAYMENT_METHODS, data: restoreData.hiddenPaymentMethods },
+        { key: STORAGE_KEYS.PRINTERS, data: restoreData.printers },
+        { key: STORAGE_KEYS.REGISTERED_PRINTERS, data: restoreData.registeredPrinters },
+        { key: STORAGE_KEYS.COMPANY_INFO, data: restoreData.company },
+        { key: STORAGE_KEYS.COUPON_CONFIG, data: restoreData.couponConfig },
+        { key: STORAGE_KEYS.COUPON_PDV_CONFIG, data: restoreData.couponPDVConfig },
+        { key: STORAGE_KEYS.GREETING_COUPON_CONFIG, data: restoreData.greetingCouponConfig },
+        { key: STORAGE_KEYS.LABEL_CONFIG, data: restoreData.labelConfig },
+        { key: STORAGE_KEYS.CASHIER_SESSION, data: restoreData.cashierSession },
+        { key: STORAGE_KEYS.SELECTED_PRINTER, data: restoreData.selectedPrinter },
+        { key: STORAGE_KEYS.SELECTED_LABEL_PRINTER, data: restoreData.selectedLabelPrinter },
+        { key: STORAGE_KEYS.REVENUES, data: restoreData.revenues },
+        { key: STORAGE_KEYS.PURCHASES, data: restoreData.purchases },
+        { key: STORAGE_KEYS.EXPENSES, data: restoreData.expenses },
+        { key: STORAGE_KEYS.RAW_MATERIALS, data: restoreData.rawMaterialsStructured },
+        { key: STORAGE_KEYS.PRODUCT_RECIPES, data: restoreData.productRecipes },
+        { key: STORAGE_KEYS.SHOPKEEPERS, data: restoreData.shopkeepers },
+        { key: STORAGE_KEYS.SHOPKEEPER_DELIVERIES, data: restoreData.shopkeeperDeliveries },
+        { key: STORAGE_KEYS.GALLERY, data: restoreData.gallery }
       ];
 
       console.log('[Backup] Iniciando restauração de dados...');
@@ -4008,11 +4076,12 @@ function SettingsView({
         }
       }
       
-      alert('Dados restaurados com sucesso! O sistema será reiniciado para aplicar as mudanças.');
+      // 5. Garantir que os dados importados substituam corretamente e o sistema atualize
+      alert('Backup restaurado com sucesso! O sistema voltará exatamente ao estado salvo.');
       window.location.reload();
     } catch (err: any) {
       console.error('Erro ao restaurar dados:', err);
-      alert('Erro crítico ao restaurar backup: ' + err.message);
+      alert('Erro ao importar backup: ' + err.message);
     }
   };
 
